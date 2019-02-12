@@ -65,6 +65,9 @@ tiempoActual = 0
 ret, current_frame = cap.read()
 previuos_frame = current_frame
 
+fgbg = cv2.createBackgroundSubtractorKNN()
+fgbg.setDetectShadows(True)
+
 while(1):
 
 	# Capturamos el tiempo actual
@@ -80,28 +83,30 @@ while(1):
 	# Mostramos linea de seguridad
 	cv2.line(current_frame, (x1, y1), (x2, y2), colorRojo, grosorNormal)
 
-	# Calculamos la diferencia entre las dos imagenes.
-	current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-	previuos_frame_gray = cv2.cvtColor(previuos_frame, cv2.COLOR_BGR2GRAY)
-	
-	#current_frame_gray = imutils.resize(current_frame_gray, width=min(400, current_frame.shape[1]))
-	#previuos_frame_gray = imutils.resize(previuos_frame_gray, width=min(400, current_frame.shape[1]))
-	
-	#bg_img = cv2.medianBlur(dilated_img, 21)
-	current_frame_gray = cv2.erode(current_frame_gray, np.ones((11,11)), 5)
-	previuos_frame_gray = cv2.erode(previuos_frame_gray, np.ones((11,11)), 5)
-	
-	frame_diff = cv2.absdiff(current_frame_gray, previuos_frame_gray)
+	# Clean Frame
+	gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+	gray = cv2.erode(gray, np.ones((5,5)), 16)
+	aux = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, np.ones((11,11)))
 
-	frame_diff = cv2.erode(frame_diff, np.ones((11,11)), 5)
+
+
+	gray = cv2.inRange(gray, 20, 255)
+	gray = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 115, 1)
+
+	fgmask = fgbg.apply(gray)
+	blur = cv2.medianBlur(fgmask, 5)
 
 	
-	# Buscamos los contornos
-	frame_diff = cv2.GaussianBlur(frame_diff, (11, 11), 0)
-	edges = cv2.inRange(frame_diff, 20, 255)
-	#frame_diff = cv2.adaptiveThreshold(frame_diff, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 115, 1)
-	frame_diff = cv2.Canny(edges, 5, 10)
-	contours,_ = cv2.findContours(edges,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+	thresh = cv2.threshold(blur, 127, 255, cv2.THRESH_BINARY)[1]  # shadow of MOG@ is grey = 127
+	kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+	closing = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)  # fill any small holes
+	opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)  # remove noise
+	
+	#cv2.imshow('Frame Diff', opening)
+	aux = cv2.Canny(opening.copy(), 5, 8)
+	contours,_ = cv2.findContours(aux, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
 
 	# Miramos cada uno de los contornos y, si no es ruido, dibujamos su Bounding Box sobre la imagen original
 	timeDiff = 0
@@ -110,7 +115,7 @@ while(1):
 			# Guardamos las dimensiones de la Bounding Box
 			posicion_x,posicion_y,ancho,alto = cv2.boundingRect(c) 
 			
-			if ancho >= 30 and alto >= 30:
+			if ancho >= 50 and alto >= 50:
 				#Tiempo que esta en la zona
 				if posicion_x + ancho >= x1 and posicion_x + ancho >= x2:
 					color = colorRojo
@@ -146,10 +151,10 @@ while(1):
 	
 	cv2.putText(current_frame, str(tiempoActual), bottomLeftCornerOfText, cv2.FONT_HERSHEY_SIMPLEX, fontScale, colorAzul, lineType) 
 	
-	frame_diff = imutils.resize(frame_diff, width=min(400, current_frame.shape[1]))
+	#frame_diff = imutils.resize(frame_diff, width=min(400, current_frame.shape[1]))
 	current_frame = imutils.resize(current_frame, width=min(400, current_frame.shape[1]))
 	# Mostramos las capturas
-	cv2.imshow('Frame Diff', frame_diff)
+	#cv2.imshow('Frame Diff', frame_diff)
 	cv2.imshow('Current_frame',current_frame)
 
 	
