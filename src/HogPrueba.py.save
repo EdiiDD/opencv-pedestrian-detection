@@ -1,0 +1,141 @@
+# Importación de librerías
+from datetime import datetime, time
+from imutils.object_detection import non_max_suppression
+import numpy as np
+import urllib.request
+import random as rng
+import cv2
+import imutils
+import time
+
+# PARAMETROS DEL PROGRAMA
+
+# Capturamos el vídeo de una camara Web IP
+url = "../video/1.mp4"
+urlWebCam = "http://91.221.52.198:82/mjpg/video.mjpg"
+urlWebCam1 = "http://93.87.72.254:8090/mjpg/video.mjpg"
+cap = cv2.VideoCapture(urlWebCam1)
+
+# Color del rectangulo
+color = (0,0,0)
+colorAzul  = (255,0,0)
+colorVerde = (0,255,0)
+colorRojo = (0,0,255)
+
+# Grosor de figuras
+grosor = 0
+grosorNormal = 2
+grosorAlerta = 3
+
+# Posiciones de la linea de seguridad
+x1 = 330
+y1 = 0
+x2 = 330
+y2 = 380
+
+# Tiempo que esta la persona en la zona de seguridad
+zonaProhibida = False
+currentMillis = 0
+endMillis = 0
+textoProhibido =  "Tiempo en zona de seguridad " , currentMillis
+
+# Parametros de texto indicativo
+font                   = cv2.FONT_HERSHEY_COMPLEX_SMALL
+topLeftCornerOfText = (10,20)
+topLeftCornerOfText1 = (10,50)
+bottomLeftCornerOfText = (20,340)
+fontScale              = 0.5
+fontColor              = colorVerde
+lineType               = 1
+
+# Texto a imprimir
+textoSinPeligro = "Sin Peligro"
+textoPeligro = "PELIGRO"
+texto = textoSinPeligro
+
+
+
+# Capturar el tiempo actual
+tiempoActual = 0
+
+# Frames a mostrar
+FRAMES = 2
+numFrames = 0
+
+
+# Capturamos el primer frame
+ret, current_frame = cap.read()
+previuos_frame = current_frame
+
+# FUNCIONES AUXILIARES DEL PRGRAMA
+def background_subtraction(previous_frame, frame_resized_grayscale, min_area):
+    frameDelta = cv2.absdiff(previus_frame, framere_sized_grayscale)
+    thresh = cv2-threshold(frameDelta, 25, 255, cv2.THRESH_BINARY)
+    thresh = cv2.dilate(thresh, None, iterations = 2)
+    im2, cnts, hierachy = cv2.findContours(thresh.copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    temp = 0
+    for c in cnts:
+        if cv2.contourArea > min_area:
+            temp = 1
+    return temp
+
+
+def detect_people(frame):
+    (rects, weights) = hog.detectionMultiScale(frame, winStride = (8, 8), padding = (16, 16), scale = 1.06)
+    rects = np.array([[x, y, x + w, y + h] for (x, y, w, h) in rects])
+    pick = non_max_suppression(rects, probs=None, overlapThresh=0.65)
+
+    # Pintar caja
+    for (xA, yA, xB, yB) in pick:
+        cv2.rectangle(current_frame, (xA, yA), (xB, yB), colorRojo, grosorAlerta)
+    return frame
+
+
+# Función para calucar la diferencia en segundos
+def date_diff_in_Seconds(dt2, dt1):
+	timedelta = dt2 - dt1
+	return timedelta.days * 24 * 3600 + timedelta.seconds
+
+
+
+
+hog = cv2.HOGDescriptor()
+hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
+
+
+while(1):
+	numFrames = numFrames + 1
+	if numFrames % FRAMES ==  0:
+
+		# Capturamos el tiempo actual
+		tiempoActual = datetime.now()
+
+		# Capturamos los frames sucesivos
+		ret, current_frame = cap.read()
+
+		# Si el video termina
+		if (not ret):
+			break
+
+	frame_resized = imutils.resize(current_frame, width=min(400, current_frame.shape[1]))
+	min_area = (3000/800) * frame_resized.shape[1]
+	frame_resized_grat = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
+	temp = background_subtraction(previoud_frame, frame_resized_graysclae, min_area)
+
+	if temp == 1:
+            frame_proccesed = detect_people(frame_resized)
+		# Mostramos las capturas
+		cv2.imshow('Current_frame', frame_proccesed)
+	else:
+		# Capturamos los frames sucesivos
+		for x in  range(0,5):
+			ret, current_frame = cap.read()
+
+	# Sentencias para salir, pulsa 's' y sale
+	k = cv2.waitKey(30) & 0xff
+	if k == ord("s"):
+		break
+
+# Liberamos la cámara y cerramos todas las ventanas
+cap.release()
+cv2.destroyAllWindows()
