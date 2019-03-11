@@ -8,6 +8,8 @@ import cv2
 import imutils
 import time
 import os
+import requests
+import base64
 
 # PARAMETROS DEL PROGRAMA
 
@@ -17,6 +19,10 @@ urlWebCam = "http://91.221.52.198:82/mjpg/video.mjpg"
 urlWebCam1 = "http://93.87.72.254:8090/mjpg/video.mjpg"
 urlWebCam2 = 'rtsp://172.30.30.6/ch0_1.h264'
 cap = cv2.VideoCapture(url)
+
+# Parametros del servidor de imagenes
+urlServerImg = "http://julian.byprox.com/opencv/upload.php"
+
 
 # Color del rectangulo
 color = (0,0,0)
@@ -107,8 +113,17 @@ def drawDetection(frame, xA, yA, xB, yB, cont):
 	strTime = time.strftime("%x %X")
 	cv2.putText(frame,"Time: {time}".format(time=tiempoDiff), topLeftCornerOfText1, cv2.FONT_HERSHEY_SIMPLEX, fontScale, color, grosorNormal) #Peligro
 	# Guardamos la imagen en un folder.
-	cv2.imwrite("frame%d.png" %cont, frame)
+	frameName = "frame%d.png" %cont
+	cv2.imwrite(frameName, frame)
+	postFrame(frameName)
 	return frame
+	
+def postFrame(frame):
+	frame = base64.b64encode(open(frame, 'rb').read())
+	datos = { 'imagen' : frame }
+	req = requests.post(urlServerImg, data=datos)
+	print("Image post to server")
+
 
 def moveX(xA, yA, pick, frame):
 	
@@ -124,7 +139,7 @@ def moveX(xA, yA, pick, frame):
 		variacionX = 5
 		#print("Dentro de la zona ejeX2")
 		if abs(xA - coordenadasAnteriores[0]) > variacionX:
-			cv2.putText(frame,"XXX", (xA, yA), cv2.FONT_HERSHEY_SIMPLEX, fontScale, color, grosorNormal) #Peligro
+			#cv2.putText(frame,"XXX", (xA, yA), cv2.FONT_HERSHEY_SIMPLEX, fontScale, color, grosorNormal) #Peligro
 			x = 2
 
 	return x
@@ -139,7 +154,7 @@ def moveY(xA, yA, pick, frame):
 		variacionY = 5
 		if abs(yA - coordenadasAnteriores[1]) > variacionY:
 			#print("Dentro de la zona ejeY2")	
-			cv2.putText(frame,"YYY", (xA, yA), cv2.FONT_HERSHEY_SIMPLEX, fontScale, color, grosorNormal) #Peligro 
+			#cv2.putText(frame,"YYY", (xA, yA), cv2.FONT_HERSHEY_SIMPLEX, fontScale, color, grosorNormal) #Peligro 
 			y = 2
 	return y
 
